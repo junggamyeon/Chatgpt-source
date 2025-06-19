@@ -1026,3 +1026,58 @@ document.querySelectorAll('.btn').forEach(btn => {
         btn.style.transform = 'scale(1)';
     });
 });
+downloadVideoBtn.addEventListener('click', async () => {
+    if (!recordRTC || photos.length < 4) {
+        alert("Bạn cần quay video và chụp ít nhất 4 ảnh!");
+        return;
+    }
+
+    downloadVideoBtn.textContent = "🎞 Đang xử lý...";
+    downloadVideoBtn.disabled = true;
+
+    const formData = new FormData();
+
+    // Gửi 4 ảnh đầu tiên
+    photos.slice(0, 4).forEach((p, i) => {
+        const blob = dataURLtoBlob(p.url);
+        formData.append('images', blob, `photo${i}.jpg`);
+    });
+
+    // Gửi video đã quay
+    formData.append('video', recordRTC.getBlob());
+    formData.append('layout', '2x2');
+
+    try {
+        const response = await fetch('/api/render-video', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) throw new Error("Lỗi từ server");
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'photobooth_final.mp4';
+        a.click();
+    } catch (err) {
+        alert("Lỗi khi xử lý video: " + err.message);
+    } finally {
+        downloadVideoBtn.textContent = "🎞 Tải video";
+        downloadVideoBtn.disabled = false;
+    }
+});
+
+function dataURLtoBlob(dataurl) {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+}
