@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Photobooth Vui Nhộn</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1><i class="fas fa-camera-retro"></i> PHOTOBOOTH VUI NHỘN</h1>
+        </div>
+        
+        <div class="main-content">
+            <!-- Settings Panel -->
+            <div class="settings-panel" id="settingsPanel">
+                <h2><i class="fas fa-cog"></i> Cài đặt trước khi chụp</h2>
+                
+                <div class="option-group">
+                    <h3><i class="fas fa-images"></i> Số lượng ảnh</h3>
+                    <select id="photoCountSelect" class="form-select">
+                        <option value="1">1 ảnh</option>
+                        <option value="2">2 ảnh</option>
+                        <option value="3">3 ảnh</option>
+                        <option value="4" selected>4 ảnh</option>
+                        <option value="5">5 ảnh</option>
+                        <option value="6">6 ảnh</option>
+                    </select>
+                </div>
+                
+                <div class="option-group">
+                    <h3><i class="fas fa-clock"></i> Thời gian đếm ngược</h3>
+                    <input type="range" id="countdownSlider" min="1" max="5" value="3">
+                    <span id="countdownValue">3 giây</span>
+                </div>
+                
+                <div class="option-group">
+                    <h3><i class="fas fa-stopwatch"></i> Thời gian giữa các ảnh</h3>
+                    <input type="range" id="intervalSlider" min="1" max="10" value="4">
+                    <span id="intervalValue">4 giây</span>
+                </div>
+                
+                <button id="confirmSettingsBtn" class="btn btn-primary">
+                    <i class="fas fa-check"></i> Xác nhận
+                </button>
+            </div>
+            
+            <!-- Camera View -->
+            <div class="camera-view" id="cameraView" style="display:none;">
+                <video id="video" autoplay playsinline></video>
+                <div id="countdown" class="countdown"></div>
+            </div>
+            
+            <!-- Canvas (hidden) -->
+            <canvas id="canvas" style="display:none;"></canvas>
+            
+            <!-- Controls -->
+            <div class="controls" id="controls" style="display:none;">
+                <button id="startBtn" class="btn btn-primary">
+                    <i class="fas fa-play"></i> Bắt đầu
+                </button>
+                <button id="retakeBtn" class="btn btn-secondary" disabled>
+                    <i class="fas fa-redo"></i> Làm lại
+                </button>
+                <button id="editBtn" class="btn btn-primary" disabled>
+                    <i class="fas fa-magic"></i> Trang trí
+                </button>
+            </div>
+            
+            <!-- Thumbnail Preview -->
+            <div class="thumbnails" id="thumbnails"></div>
+        </div>
+        
+        <!-- Edit Panel (initially hidden) -->
+        <div class="edit-panel" id="editPanel">
+            <div class="edit-header">
+                <h2><i class="fas fa-edit"></i> Trang trí ảnh</h2>
+                <button id="closeEditBtn" class="btn btn-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="edit-options">
+                <!-- Tab Navigation -->
+                <div class="edit-tabs">
+                    <button class="tab-btn active" data-tab="stickers-tab"><i class="fas fa-sticky-note"></i> Sticker</button>
+                    <button class="tab-btn" data-tab="frames-tab"><i class="fas fa-border-style"></i> Khung ảnh</button>
+                    <button class="tab-btn" data-tab="layout-tab"><i class="fas fa-th"></i> Bố cục</button>
+                    <button class="tab-btn" data-tab="export-tab"><i class="fas fa-file-export"></i> Xuất ảnh</button>
+                </div>
+                
+                <!-- Stickers Tab -->
+                <div id="stickers-tab" class="tab-content active">
+                    <h3><i class="fas fa-icons"></i> Chọn sticker</h3>
+                    <div class="sticker-options">
+                        <!-- Emoji Stickers -->
+                        <div class="sticker-option" data-sticker="😀"><span>😀</span></div>
+                        <div class="sticker-option" data-sticker="😍"><span>😍</span></div>
+                        <div class="sticker-option" data-sticker="😂"><span>😂</span></div>
+                        <div class="sticker-option" data-sticker="🥰"><span>🥰</span></div>
+                        <div class="sticker-option" data-sticker="🤩"><span>🤩</span></div>
+                        <div class="sticker-option" data-sticker="😎"><span>😎</span></div>
+                        
+                        <!-- Icon Stickers -->
+                        <div class="sticker-option" data-sticker="heart"><i class="fas fa-heart"></i></div>
+                        <div class="sticker-option" data-sticker="star"><i class="fas fa-star"></i></div>
+                        <div class="sticker-option" data-sticker="camera"><i class="fas fa-camera"></i></div>
+                        <div class="sticker-option" data-sticker="music"><i class="fas fa-music"></i></div>
+                        <div class="sticker-option" data-sticker="cat"><i class="fas fa-cat"></i></div>
+                        <div class="sticker-option" data-sticker="dog"><i class="fas fa-dog"></i></div>
+                    </div>
+                    
+                    <h3><i class="fas fa-palette"></i> Màu sắc sticker</h3>
+                    <div class="color-options">
+                        <div class="color-option" data-color="#FF6B6B" style="background-color: #FF6B6B;"></div>
+                        <div class="color-option" data-color="#4ECDC4" style="background-color: #4ECDC4;"></div>
+                        <div class="color-option" data-color="#FFE66D" style="background-color: #FFE66D;"></div>
+                        <div class="color-option" data-color="#A5D8FF" style="background-color: #A5D8FF;"></div>
+                        <div class="color-option" data-color="#C8B6FF" style="background-color: #C8B6FF;"></div>
+                        <div class="color-option" data-color="#FF9E7D" style="background-color: #FF9E7D;"></div>
+                    </div>
+                    
+                    <div class="option-group">
+                        <button id="clearStickersBtn" class="btn btn-secondary">
+                            <i class="fas fa-trash"></i> Xóa sticker
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Frames Tab -->
+                <div id="frames-tab" class="tab-content">
+                    <h3><i class="fas fa-image"></i> Chọn khung ảnh</h3>
+                    <div class="frame-options">
+                        <div class="frame-option" data-frame="none">
+                            <div class="no-frame">Không khung</div>
+                            <span>Trơn</span>
+                        </div>
+                        <div class="frame-option" data-frame="polaroid">
+                            <div class="frame-preview polaroid"></div>
+                            <span>Polaroid</span>
+                        </div>
+                        <div class="frame-option" data-frame="vintage">
+                            <div class="frame-preview vintage"></div>
+                            <span>Vintage</span>
+                        </div>
+                        <div class="frame-option" data-frame="modern">
+                            <div class="frame-preview modern"></div>
+                            <span>Hiện đại</span>
+                        </div>
+                        <div class="frame-option" data-frame="wooden">
+                            <div class="frame-preview wooden"></div>
+                            <span>Gỗ</span>
+                        </div>
+                        <div class="frame-option" data-frame="fancy">
+                            <div class="frame-preview fancy"></div>
+                            <span>Sang trọng</span>
+                        </div>
+                    </div>
+                    
+                    <div class="option-group" id="frameColorGroup" style="display:none;">
+                        <h3><i class="fas fa-palette"></i> Màu khung</h3>
+                        <div class="color-options">
+                            <div class="color-option" data-bgcolor="#FFFFFF" style="background-color: #FFFFFF; border: 1px solid #ddd;"></div>
+                            <div class="color-option" data-bgcolor="#F5F5F5" style="background-color: #F5F5F5; border: 1px solid #ddd;"></div>
+                            <div class="color-option" data-bgcolor="#FFE6E6" style="background-color: #FFE6E6;"></div>
+                            <div class="color-option" data-bgcolor="#E6F3FF" style="background-color: #E6F3FF;"></div>
+                            <div class="color-option" data-bgcolor="#E6FFE6" style="background-color: #E6FFE6;"></div>
+                            <div class="color-option" data-bgcolor="#FFF2E6" style="background-color: #FFF2E6;"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Layout Tab -->
+                <div id="layout-tab" class="tab-content">
+                    <h3><i class="fas fa-th-large"></i> Chọn bố cục</h3>
+                    <div class="layout-options">
+                        <div class="layout-option" data-layout="horizontal">
+                            <div class="layout-preview horizontal">
+                                <div></div><div></div><div></div><div></div>
+                            </div>
+                            <span>Ngang</span>
+                        </div>
+                        <div class="layout-option" data-layout="vertical">
+                            <div class="layout-preview vertical">
+                                <div></div><div></div><div></div><div></div>
+                            </div>
+                            <span>Dọc</span>
+                        </div>
+                        <div class="layout-option" data-layout="2x2">
+                            <div class="layout-preview grid">
+                                <div></div><div></div><div></div><div></div>
+                            </div>
+                            <span>Lưới 2x2</span>
+                        </div>
+                    </div>
+                    
+                    <div class="option-group">
+                        <h3><i class="fas fa-border-all"></i> Khoảng cách</h3>
+                        <input type="range" id="spacingSlider" min="0" max="50" value="10">
+                    </div>
+                </div>
+                
+                <!-- Export Tab -->
+                <div id="export-tab" class="tab-content">
+                    <div class="option-group">
+                        <h3><i class="fas fa-file-image"></i> Định dạng ảnh</h3>
+                        <select id="imageFormatSelect" class="form-select">
+                            <option value="png">PNG (Chất lượng cao)</option>
+                            <option value="jpeg">JPEG (Kích thước nhỏ)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="option-group">
+                        <h3><i class="fas fa-file-video"></i> Định dạng video</h3>
+                        <select id="videoFormatSelect" class="form-select">
+                            <option value="webm">WebM (Chất lượng cao)</option>
+                            <option value="mp4">MP4 (Tương thích rộng)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="option-group">
+                        <h3><i class="fas fa-file-archive"></i> Chất lượng ảnh</h3>
+                        <input type="range" id="qualitySlider" min="0.1" max="1" step="0.1" value="0.9">
+                        <span id="qualityValue">90%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="edit-preview-container">
+                <canvas id="editCanvas"></canvas>
+                <div class="sticker-container" id="editStickerContainer"></div>
+            </div>
+            
+            <div class="photo-selector">
+                <h3><i class="fas fa-image"></i> Chọn ảnh để chỉnh sửa</h3>
+                <div class="thumbnails-edit" id="thumbnailsEdit"></div>
+            </div>
+            
+            <div class="edit-actions">
+                <button id="saveEditBtn" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Lưu thay đổi
+                </button>
+                <button id="downloadBtn" class="btn btn-download">
+                    <i class="fas fa-download"></i> Tải ảnh
+                </button>
+                <button id="downloadVideoBtn" class="btn btn-download">
+                    <i class="fas fa-film"></i> Tải video
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
