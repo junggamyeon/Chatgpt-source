@@ -1,10 +1,4 @@
-getgenv().Config = {
-    ["Main Account"] = "USERNAME_OR_DISPLAYNAME_OR_USERID",
-    ["Sticker Trade"] = {
-        "Lyrate Leaf",
-        "Uplooking Bear"
-    }
-}
+
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
