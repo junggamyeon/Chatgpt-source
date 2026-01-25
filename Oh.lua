@@ -8,10 +8,6 @@ local Config = getgenv().Config or {}
 local MainAcc = tostring(Config["Main Account"] or "")
 
 local StickerTypes = require(RS.Stickers.StickerTypes)
-
--------------------------------------------------
--- SMART CLICK SAFE
--------------------------------------------------
 local LAST_CLICK = 0
 local CLICK_COOLDOWN = 1.2
 
@@ -58,9 +54,7 @@ local function smartClick(btn)
     return true
 end
 
--------------------------------------------------
--- UTILS
--------------------------------------------------
+
 local function isMainAccount()
     if tostring(LP.UserId) == MainAcc then return true end
     if LP.Name == MainAcc then return true end
@@ -76,9 +70,7 @@ local function findMainPlayer()
     end
 end
 
--------------------------------------------------
--- GUI PATHS
--------------------------------------------------
+
 local function getTradeLayer()
     return LP.PlayerGui
         :WaitForChild("ScreenGui")
@@ -101,10 +93,7 @@ local function getAcceptButton(anchor)
     end)
     if ok then return btn end
 end
-
--------------------------------------------------
--- STICKER IMAGE MAP
--------------------------------------------------
+ 
 local NameToImage = {}
 
 local function scan(t)
@@ -128,9 +117,7 @@ for _, name in ipairs(Config["Sticker Trade"] or {}) do
     end
 end
 
--------------------------------------------------
--- MAIN LOOP
--------------------------------------------------
+
 local function mainLoop()
     while true do
         local incoming = getIncomingFrame()
@@ -156,10 +143,7 @@ local function mainLoop()
         task.wait(0.5)
     end
 end
-
--------------------------------------------------
--- ALT LOOP
--------------------------------------------------
+ 
 local function altLoop()
     local mainPlr
     repeat
