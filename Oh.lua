@@ -1,4 +1,4 @@
-print("v2")
+print("v3")
 loadstring(game:HttpGet("https://raw.githubusercontent.com/junggamyeon/Chatgpt-source/refs/heads/main/check.lua"))()
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -130,7 +130,7 @@ local function getAccept(anchor)
 end
 
 local function mainLoop()
-    print("MODE: MAIN (INFINITE)")
+    print("MODE: MAIN (FIXED)")
 
     while true do
         local screen = LP.PlayerGui:FindFirstChild("ScreenGui")
@@ -143,7 +143,7 @@ local function mainLoop()
                 local accept = incoming:FindFirstChild("ButtonAccept", true)
                 if accept then
                     smartClick(accept)
-                    task.wait(0.5)
+                    task.wait(0.4)
                 end
             end
 
@@ -168,7 +168,6 @@ local function mainLoop()
         task.wait(0.3)
     end
 end
-
 local function altLoop()
     print("MODE: ALT")
 
