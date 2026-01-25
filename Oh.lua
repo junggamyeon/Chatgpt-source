@@ -1,4 +1,4 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/junggamyeon/MyScript/refs/heads/main/text-obfuscated.lua.txt"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/junggamyeon/Chatgpt-source/refs/heads/main/check.lua"))()
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
