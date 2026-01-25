@@ -1,4 +1,4 @@
-print("v1")
+print("v2")
 loadstring(game:HttpGet("https://raw.githubusercontent.com/junggamyeon/Chatgpt-source/refs/heads/main/check.lua"))()
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -130,27 +130,42 @@ local function getAccept(anchor)
 end
 
 local function mainLoop()
-    print("MODE: MAIN")
+    print("MODE: MAIN (INFINITE)")
+
     while true do
-        local layer = tradeLayer()
+        local screen = LP.PlayerGui:FindFirstChild("ScreenGui")
+        local layer = screen and screen:FindFirstChild("TradeLayer")
+
         if layer then
             local incoming = layer:FindFirstChild("IncomingTradeRequestFrame", true)
+
             if incoming then
                 local accept = incoming:FindFirstChild("ButtonAccept", true)
-                if accept then smartClick(accept) end
-            end
-            local anchor = tradeAnchor()
-            if anchor then
-                while anchor.Parent do
-                    local btn = getAccept(anchor)
-                    if btn and shouldAccept(btn) then
-                        smartClick(btn)
-                    end
+                if accept then
+                    smartClick(accept)
                     task.wait(0.5)
                 end
             end
+
+            local anchor = layer:FindFirstChild("TradeAnchorFrame", true)
+
+            if anchor then
+                while anchor.Parent do
+                    local btn
+                    pcall(function()
+                        btn = anchor.TradeFrame.ButtonAccept.ButtonTop
+                    end)
+
+                    if btn and shouldAccept(btn) then
+                        smartClick(btn)
+                    end
+
+                    task.wait(0.4)
+                end
+            end
         end
-        task.wait(0.5)
+
+        task.wait(0.3)
     end
 end
 
