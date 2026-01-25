@@ -1,3 +1,4 @@
+print("v1")
 loadstring(game:HttpGet("https://raw.githubusercontent.com/junggamyeon/Chatgpt-source/refs/heads/main/check.lua"))()
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -9,14 +10,6 @@ local Config = getgenv().Config or {}
 local MainAcc = tostring(Config["Main Account"] or "")
 
 local StickerTypes = require(RS.Stickers.StickerTypes)
-
-local function waitForPath(root, path)
-    local cur = root
-    for _, name in ipairs(path) do
-        cur = cur:WaitForChild(name)
-    end
-    return cur
-end
 
 local function fireConnections(signal)
     local ok, conns = pcall(function()
@@ -78,18 +71,18 @@ local function shouldAccept(btn)
     return true
 end
 
-local function isMainAccount()
+local function isMain()
     if tostring(LP.UserId) == MainAcc then return true end
     if LP.Name == MainAcc then return true end
     if LP.DisplayName == MainAcc then return true end
     return false
 end
 
-local function findMainPlayer()
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if tostring(plr.UserId) == MainAcc then return plr end
-        if plr.Name == MainAcc then return plr end
-        if plr.DisplayName == MainAcc then return plr end
+local function findMain()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if tostring(p.UserId) == MainAcc then return p end
+        if p.Name == MainAcc then return p end
+        if p.DisplayName == MainAcc then return p end
     end
 end
 
@@ -119,18 +112,17 @@ for _, name in ipairs(Config["Sticker Trade"] or {}) do
     end
 end
 
-local function getTradeLayer()
-    return LP.PlayerGui:WaitForChild("ScreenGui"):WaitForChild("TradeLayer")
+local function tradeLayer()
+    return LP.PlayerGui:FindFirstChild("ScreenGui") and LP.PlayerGui.ScreenGui:FindFirstChild("TradeLayer")
 end
 
-local function getTradeAnchor()
-    local ok, anchor = pcall(function()
-        return getTradeLayer():WaitForChild("TradeAnchorFrame")
-    end)
-    if ok then return anchor end
+local function tradeAnchor()
+    local layer = tradeLayer()
+    if not layer then return end
+    return layer:FindFirstChild("TradeAnchorFrame", true)
 end
 
-local function getAcceptButton(anchor)
+local function getAccept(anchor)
     local ok, btn = pcall(function()
         return anchor.TradeFrame.ButtonAccept.ButtonTop
     end)
@@ -139,22 +131,18 @@ end
 
 local function mainLoop()
     print("MODE: MAIN")
-    local tradeLayer = getTradeLayer()
-
     while true do
-        local incoming = tradeLayer:FindFirstChild("IncomingTradeRequestFrame", true)
-        if incoming then
-            local accept = incoming:FindFirstChild("ButtonAccept", true)
-            if accept then
-                smartClick(accept)
+        local layer = tradeLayer()
+        if layer then
+            local incoming = layer:FindFirstChild("IncomingTradeRequestFrame", true)
+            if incoming then
+                local accept = incoming:FindFirstChild("ButtonAccept", true)
+                if accept then smartClick(accept) end
             end
-
-            task.wait(2)
-
-            local anchor = tradeLayer:FindFirstChild("TradeAnchorFrame", true)
+            local anchor = tradeAnchor()
             if anchor then
                 while anchor.Parent do
-                    local btn = getAcceptButton(anchor)
+                    local btn = getAccept(anchor)
                     if btn and shouldAccept(btn) then
                         smartClick(btn)
                     end
@@ -169,16 +157,16 @@ end
 local function altLoop()
     print("MODE: ALT")
 
-    local mainPlr
+    local main
     repeat
-        mainPlr = findMainPlayer()
-        if not mainPlr then
-            warn("ALT: Main not in server, waiting...")
+        main = findMain()
+        if not main then
+            warn("ALT: Waiting main...")
             task.wait(2)
         end
-    until mainPlr
+    until main
 
-    print("ALT: Found main:", mainPlr.Name, mainPlr.UserId)
+    print("ALT: Found main:", main.Name, main.UserId)
 
     local lastSend = 0
 
@@ -186,16 +174,15 @@ local function altLoop()
         if tick() - lastSend >= 2 then
             lastSend = tick()
             pcall(function()
-                RS.Events.TradePlayerRequestStart:FireServer(mainPlr.UserId)
+                RS.Events.TradePlayerRequestStart:FireServer(main.UserId)
             end)
-            print("ALT: Sent trade request")
+            print("ALT: Sent trade")
         end
         task.wait(0.5)
-    until getTradeAnchor()
+    until tradeAnchor()
 
-    print("ALT: Trade opened")
-
-    local anchor = getTradeAnchor()
+    local anchor = tradeAnchor()
+    if not anchor then return end
 
     local grid = anchor
         :WaitForChild("TradeInventory")
@@ -204,31 +191,24 @@ local function altLoop()
         :WaitForChild("GuiGrid")
         :WaitForChild("GridSlotStage")
 
-    local added = 0
-
     for _, slot in ipairs(grid:GetChildren()) do
         local ok, img = pcall(function()
             return slot.ObjImage.GuiTile.StageGrow.StagePop.StageFlip.ObjCard.ObjContent.ObjImage
         end)
-
         if ok and img and img:IsA("ImageLabel") then
             local guiImg = tostring(img.Image)
-            local name = TargetImages[guiImg]
-
-            if name then
+            if TargetImages[guiImg] then
                 local btn = slot.ObjImage.GuiTile.StageOverlay:FindFirstChild("AddButton", true)
-                if btn and smartClick(btn) then
-                    added += 1
-                    task.wait(0.3)
+                if btn then
+                    smartClick(btn)
+                    task.wait(0.4)
                 end
             end
         end
     end
 
-    print("ALT: Total added =", added)
-
     while anchor.Parent do
-        local btn = getAcceptButton(anchor)
+        local btn = getAccept(anchor)
         if btn and shouldAccept(btn) then
             smartClick(btn)
         end
@@ -241,7 +221,7 @@ local function altLoop()
 end
 
 task.spawn(function()
-    if isMainAccount() then
+    if isMain() then
         mainLoop()
     else
         altLoop()
