@@ -1,5 +1,5 @@
 repeat task.wait() until game:IsLoaded()
-
+print("v6")
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 
@@ -49,22 +49,45 @@ local function fireConnections(signal)
     return false
 end
 
+local UIS = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+local VIM = game:GetService("VirtualInputManager")
+
+local function clickEnter(obj)
+    GuiService.SelectedObject = obj
+    task.wait(0.05)
+    VIM:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+    task.wait(0.05)
+    VIM:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+end
+
+local function clickMouse(obj)
+    local pos = obj.AbsolutePosition + (obj.AbsoluteSize / 2)
+    VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
+    task.wait(0.05)
+    VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
+end
+
 local function safeClick(btn)
-    if not btn then return false end
-    if not btn.Visible or not btn.Active then return false end
-    if tick() - LAST_CLICK < CLICK_DELAY then return false end
+    if not btn or not btn:IsDescendantOf(game) then return false end
 
-    LAST_CLICK = tick()
+    pcall(function()
+        for _,v in ipairs(getconnections(btn.Activated)) do
+            v:Fire()
+        end
+        for _,v in ipairs(getconnections(btn.MouseButton1Click)) do
+            v:Fire()
+        end
+    end)
 
-    if btn:IsA("GuiButton") then
-        if fireConnections(btn.Activated) then return true end
-        if fireConnections(btn.MouseButton1Click) then return true end
-        pcall(function()
-            btn:Activate()
-        end)
-        return true
-    end
-    return false
+    task.wait(0.05)
+
+    pcall(function() clickEnter(btn) end)
+    task.wait(0.05)
+
+    pcall(function() clickMouse(btn) end)
+
+    return true
 end
 
 local function shouldAccept(btn)
