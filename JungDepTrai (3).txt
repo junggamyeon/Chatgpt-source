@@ -1,4 +1,4 @@
-print("anh jung dz v14")
+print("anh jung dz v15")
 repeat task.wait() until game:IsLoaded() and game.Players.LocalPlayer
 local Config = getgenv().Config
 local FeedConfig = Config["Auto Feed"] or {}
@@ -561,7 +561,43 @@ local function writeStatus(text)
         writefile(Player.Name .. ".txt", text)
     end)
 end
+local TeleportService = game:GetService("TeleportService")
 
+local function tryHopToJob(jobId)
+    if not jobId or jobId == "" then return false end
+
+    task.spawn(function()
+        while true do
+            local ok, server = pcall(function()
+                return TeleportService:GetPlayerPlaceInstanceAsync(
+                    game.PlaceId,
+                    jobId
+                )
+            end)
+
+            if ok and server then
+                local players = server.Players or 0
+                local maxPlayers = server.MaxPlayers or 0
+
+                print("[AutoTrade] Job:", jobId, "Players:", players, "/", maxPlayers)
+
+                if players < maxPlayers then
+                    print("[AutoTrade] Slot free → Teleporting...")
+                    TeleportService:TeleportToPlaceInstance(
+                        game.PlaceId,
+                        jobId,
+                        Player
+                    )
+                    return
+                end
+            end
+
+            task.wait(10) -- mỗi 10s check lại
+        end
+    end)
+
+    return true
+end
 local function checkStarSign()
     if STATE.WROTE_STATUS then return end
 
@@ -582,13 +618,6 @@ local function checkStarSign()
             local last = STATE.LAST_SIGNS[name] or 0
             if amount > last then
                 foundThisTick = true
-
-                sendWebhook("Star Sign collected!!!", {
-                    { name = "Player", value = Player.Name, inline = false },
-                    { name = "Star Sign", value = name, inline = false },
-                    { name = "Amount", value = tostring(amount), inline = false }
-                }, 65280)
-
                 STATE.LAST_SIGNS[name] = amount
             end
         end
@@ -605,12 +634,28 @@ local function checkStarSign()
         end
     end
 
+    -- ===== CO STAR SIGN =====
     if hasEverFound and beeCount >= 20 and playTime >= 28900 then
-        writeStatus("Completed-CoStarSign")
-        STATE.WROTE_STATUS = true
+        local tradeCfg = Config["Auto Trade"]
+
+        if tradeCfg and tradeCfg["Enable"] == true then
+            local jobId = tradeCfg["Job Id"]
+
+            -- WEBHOOK BÁO HOP
+            sendWebhook("Hop to server auto trade main!!!!", {
+                { name = "Players", value = Player.Name, inline = false }
+            }, 16711680) -- đỏ
+
+            tryHopToJob(jobId) -- retry teleport tới khi còn slot
+        else
+            writeStatus("Completed-CoStarSign")
+            STATE.WROTE_STATUS = true
+        end
+
         return
     end
 
+    -- ===== KO STAR SIGN =====
     if questDone and not hasEverFound then
         local inv = getInventory()
         local hasStarEgg = (inv["StarEgg"] or 0) > 0
