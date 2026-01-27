@@ -1,5 +1,5 @@
 repeat task.wait() until game:IsLoaded()
-print("v3")
+print("v4")
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 
@@ -62,13 +62,10 @@ local function safeClick(btn)
     end)
 
     if btn:IsA("GuiButton") then
-        if fireConnections(btn.Activated) then return true end
-        if fireConnections(btn.MouseButton1Click) then return true end
-        pcall(function()
-            btn:Activate()
-        end)
+        fireConnections(btn.MouseButton1Click)
         return true
     end
+
     return false
 end
 
