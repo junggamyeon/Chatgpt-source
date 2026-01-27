@@ -1,23 +1,40 @@
-print("v4")
-loadstring(game:HttpGet("https://raw.githubusercontent.com/junggamyeon/Chatgpt-source/refs/heads/main/check.lua"))()
-
 repeat task.wait() until game:IsLoaded()
-
+print("v5")
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
 
 local LP = Players.LocalPlayer
 local Config = getgenv().Config or {}
-local MainAcc = tostring(Config["Main Account"] or "")
+local MAIN_ID = tostring(Config["Main Account"] or "")
 local CHANGE_MAIN_AT = tonumber(Config["Change Acc Main When Has Sticker"] or 0)
 
 local StickerTypes = require(RS.Stickers.StickerTypes)
 
+local CLICK_DELAY = 0.75
+local TRADE_TIMEOUT = 30
+
 local LAST_CLICK = 0
-local CLICK_COOLDOWN = 1.2
 local TRADE_OPEN = false
 local WROTE_MAIN_FILE = false
+
+-------------------------------------------------
+-- UTILS
+-------------------------------------------------
+local function waitForPath(root, path, timeout)
+    local cur = root
+    local t0 = tick()
+    for _, name in ipairs(path) do
+        while cur and not cur:FindFirstChild(name) do
+            if timeout and tick() - t0 > timeout then
+                return nil
+            end
+            task.wait(0.1)
+        end
+        cur = cur:FindFirstChild(name)
+    end
+    return cur
+end
 
 local function fireConnections(signal)
     local ok, conns = pcall(function()
@@ -33,76 +50,53 @@ local function fireConnections(signal)
     return false
 end
 
-local function shouldAccept(btn)
-    local ok, label = pcall(function()
-        return btn:FindFirstChild("TextLabel", true)
-    end)
-    if ok and label and label.Text then
-        return label.Text:lower() == "accept"
-    end
-    return true
-end
-
-local function smartClick(btn)
+local function safeClick(btn)
     if not btn then return false end
-    if not btn.Visible then return false end
-    if not btn.Active then return false end
-
-    if tick() - LAST_CLICK < CLICK_COOLDOWN then return false end
-    if not shouldAccept(btn) then return false end
+    if not btn.Visible or not btn.Active then return false end
+    if tick() - LAST_CLICK < CLICK_DELAY then return false end
 
     LAST_CLICK = tick()
 
-    if btn:IsA("GuiButton") or btn:IsA("TextButton") or btn:IsA("ImageButton") then
+    if btn:IsA("GuiButton") then
         if fireConnections(btn.Activated) then return true end
         if fireConnections(btn.MouseButton1Click) then return true end
+        pcall(function()
+            btn:Activate()
+        end)
+        return true
     end
-
-    pcall(function()
-        btn:Activate()
-    end)
-
-    return true
-end
-
-local function isMainAccount()
-    if tostring(LP.UserId) == MainAcc then return true end
-    if LP.Name == MainAcc then return true end
-    if LP.DisplayName == MainAcc then return true end
     return false
 end
 
-local function findMainPlayer()
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if tostring(plr.UserId) == MainAcc then return plr end
-        if plr.Name == MainAcc then return plr end
-        if plr.DisplayName == MainAcc then return plr end
+local function shouldAccept(btn)
+    local label = btn:FindFirstChild("TextLabel", true)
+    if label and label.Text then
+        return label.Text:lower() == "accept"
+    end
+    return false
+end
+
+-------------------------------------------------
+-- MAIN DETECT
+-------------------------------------------------
+local function isMain()
+    if tostring(LP.UserId) == MAIN_ID then return true end
+    if LP.Name == MAIN_ID then return true end
+    if LP.DisplayName == MAIN_ID then return true end
+    return false
+end
+
+local function findMain()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if tostring(p.UserId) == MAIN_ID then return p end
+        if p.Name == MAIN_ID then return p end
+        if p.DisplayName == MAIN_ID then return p end
     end
 end
 
-local function getTradeLayer()
-    return LP.PlayerGui
-        :WaitForChild("ScreenGui")
-        :WaitForChild("TradeLayer")
-end
-
-local function getTradeAnchor()
-    local layer = getTradeLayer()
-    return layer:FindFirstChild("TradeAnchorFrame", true)
-end
-
-local function getIncomingFrame()
-    local layer = getTradeLayer()
-    return layer:FindFirstChild("IncomingTradeRequestFrame", true)
-end
-
-local function getAcceptButton(anchor)
-    local ok, btn = pcall(function()
-        return anchor.TradeFrame.ButtonAccept.ButtonTop
-    end)
-    if ok then return btn end
-end
-
+-------------------------------------------------
+-- STICKER MAP
+-------------------------------------------------
 local NameToImage = {}
 
 local function scan(t)
@@ -122,10 +116,13 @@ local TargetImages = {}
 for _, name in ipairs(Config["Sticker Trade"] or {}) do
     local img = NameToImage[name]
     if img then
-        TargetImages[img] = name
+        TargetImages[img] = true
     end
 end
 
+-------------------------------------------------
+-- BOOK COUNT (MAIN FEATURE)
+-------------------------------------------------
 local function getStickerSlotCount()
     local ok, cache = pcall(function()
         return require(RS.ClientStatCache):Get()
@@ -151,7 +148,6 @@ local function checkMainStickerCount()
     if WROTE_MAIN_FILE then return end
 
     local total = getStickerSlotCount()
-
     if total >= CHANGE_MAIN_AT then
         WROTE_MAIN_FILE = true
         pcall(function()
@@ -160,53 +156,93 @@ local function checkMainStickerCount()
     end
 end
 
+-------------------------------------------------
+-- GUI
+-------------------------------------------------
+local function tradeLayer()
+    return LP.PlayerGui:FindFirstChild("ScreenGui")
+        and LP.PlayerGui.ScreenGui:FindFirstChild("TradeLayer")
+end
+
+local function tradeAnchor()
+    local layer = tradeLayer()
+    if not layer then return end
+    return layer:FindFirstChild("TradeAnchorFrame", true)
+end
+
+local function acceptButton(anchor)
+    local ok, btn = pcall(function()
+        return anchor.TradeFrame.ButtonAccept.ButtonTop
+    end)
+    if ok then return btn end
+end
+
+-------------------------------------------------
+-- FAILSAFE RESET
+-------------------------------------------------
 task.spawn(function()
     while true do
-        task.wait(10)
-        if TRADE_OPEN and not getTradeAnchor() then
+        task.wait(5)
+        if TRADE_OPEN and not tradeAnchor() then
             LAST_CLICK = 0
             TRADE_OPEN = false
         end
     end
 end)
 
+-------------------------------------------------
+-- MAIN LOOP
+-------------------------------------------------
 local function mainLoop()
     while true do
         checkMainStickerCount()
 
-        local incoming = getIncomingFrame()
-        if incoming then
-            local acceptBtn = incoming:FindFirstChild("ButtonAccept", true)
-            if acceptBtn then
-                smartClick(acceptBtn)
+        local layer = tradeLayer()
+        if layer then
+            local incoming = layer:FindFirstChild("IncomingTradeRequestFrame", true)
+
+            if incoming then
+                local btn = incoming:FindFirstChild("ButtonAccept", true)
+                if btn then
+                    safeClick(btn)
+                end
             end
 
-            task.wait(1)
-
-            local anchor = getTradeAnchor()
+            local anchor = tradeAnchor()
             if anchor then
                 TRADE_OPEN = true
+                local start = tick()
+
                 while anchor.Parent do
-                    local btn = getAcceptButton(anchor)
-                    if btn then
-                        smartClick(btn)
+                    local btn = acceptButton(anchor)
+                    if btn and shouldAccept(btn) then
+                        safeClick(btn)
                     end
-                    task.wait(0.5)
+
+                    if tick() - start > TRADE_TIMEOUT then
+                        break
+                    end
+                    task.wait(0.25)
                 end
+
                 TRADE_OPEN = false
                 LAST_CLICK = 0
             end
         end
-        task.wait(0.5)
+
+        task.wait(0.25)
     end
 end
 
+-------------------------------------------------
+-- ALT LOOP
+-------------------------------------------------
 local function altLoop()
-    local mainPlr
+    local main
     repeat
-        mainPlr = findMainPlayer()
-        task.wait(2)
-    until mainPlr
+        main = findMain()
+        task.wait(1)
+    until main
 
     local lastSend = 0
 
@@ -214,21 +250,24 @@ local function altLoop()
         if tick() - lastSend >= 2 then
             lastSend = tick()
             pcall(function()
-                RS.Events.TradePlayerRequestStart:FireServer(mainPlr.UserId)
+                RS.Events.TradePlayerRequestStart:FireServer(main.UserId)
             end)
         end
-        task.wait(0.3)
-    until getTradeAnchor()
+        task.wait(0.25)
+    until tradeAnchor()
 
-    local anchor = getTradeAnchor()
+    local anchor = tradeAnchor()
     if not anchor then return end
 
-    local grid = anchor
-        :WaitForChild("TradeInventory")
-        :WaitForChild("InventoryFrame")
-        :WaitForChild("ScrollingFrame")
-        :WaitForChild("GuiGrid")
-        :WaitForChild("GridSlotStage")
+    local grid = waitForPath(anchor, {
+        "TradeInventory",
+        "InventoryFrame",
+        "ScrollingFrame",
+        "GuiGrid",
+        "GridSlotStage"
+    }, 10)
+
+    if not grid then return end
 
     for _, slot in ipairs(grid:GetChildren()) do
         local ok, img = pcall(function()
@@ -236,23 +275,27 @@ local function altLoop()
         end)
 
         if ok and img and img:IsA("ImageLabel") then
-            local guiImg = tostring(img.Image)
-            if TargetImages[guiImg] then
+            if TargetImages[tostring(img.Image)] then
                 local btn = slot.ObjImage.GuiTile.StageOverlay:FindFirstChild("AddButton", true)
                 if btn then
-                    smartClick(btn)
-                    task.wait(0.3)
+                    safeClick(btn)
+                    task.wait(0.4)
                 end
             end
         end
     end
 
+    local start = tick()
     while anchor.Parent do
-        local btn = getAcceptButton(anchor)
-        if btn then
-            smartClick(btn)
+        local btn = acceptButton(anchor)
+        if btn and shouldAccept(btn) then
+            safeClick(btn)
         end
-        task.wait(0.5)
+
+        if tick() - start > TRADE_TIMEOUT then
+            break
+        end
+        task.wait(0.25)
     end
 
     pcall(function()
@@ -260,8 +303,11 @@ local function altLoop()
     end)
 end
 
+-------------------------------------------------
+-- START
+-------------------------------------------------
 task.spawn(function()
-    if isMainAccount() then
+    if isMain() then
         mainLoop()
     else
         altLoop()
