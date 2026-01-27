@@ -1,5 +1,5 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/junggamyeon/Chatgpt-source/refs/heads/main/check.lua"))()
-
+print("v1")
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
