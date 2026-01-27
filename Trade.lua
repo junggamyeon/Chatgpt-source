@@ -4,6 +4,7 @@ repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
+local VIM = game:GetService("VirtualInputManager")
 
 local LP = Players.LocalPlayer
 local Config = getgenv().Config or {}
@@ -12,48 +13,26 @@ local MainAcc = tostring(Config["Main Account"] or "")
 local CHANGE_MAIN_AT = tonumber(Config["Change Acc Main When Has Sticker"] or 0)
 
 local LAST_CLICK = 0
-local CLICK_COOLDOWN = 1.2
 local WROTE_MAIN_FILE = false
-
-local function fireConnections(signal)
-    local ok, conns = pcall(function()
-        return getconnections(signal)
-    end)
-    if not ok or not conns then return false end
-    for _, c in ipairs(conns) do
-        if typeof(c.Function) == "function" then
-            pcall(c.Function)
-            return true
-        end
-    end
-    return false
-end
-
-local function shouldAccept(btn)
-    local ok, label = pcall(function()
-        return btn:FindFirstChild("TextLabel", true)
-    end)
-    if ok and label and label.Text then
-        return label.Text:lower() == "accept"
-    end
-    return true
-end
+local TRADE_OPEN = false
 
 local function smartClick(btn)
     if not btn then return false end
-    if tick() - LAST_CLICK < CLICK_COOLDOWN then return false end
-    if not shouldAccept(btn) then return false end
+    if not btn.Visible then return false end
+    if not btn.Active then return false end
+    if tick() - LAST_CLICK < 0.3 then return false end
 
     LAST_CLICK = tick()
 
-    if btn:IsA("GuiButton") or btn:IsA("TextButton") or btn:IsA("ImageButton") then
-        if fireConnections(btn.Activated) then return true end
-        if fireConnections(btn.MouseButton1Click) then return true end
-    end
+    local absPos = btn.AbsolutePosition
+    local absSize = btn.AbsoluteSize
 
-    pcall(function()
-        btn:Activate()
-    end)
+    local x = absPos.X + absSize.X / 2
+    local y = absPos.Y + absSize.Y / 2
+
+    VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
+    task.wait(0.05)
+    VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
 
     return true
 end
@@ -130,6 +109,16 @@ local function checkMainStickerCount()
     end
 end
 
+task.spawn(function()
+    while true do
+        task.wait(10)
+        if TRADE_OPEN and not getTradeAnchor() then
+            LAST_CLICK = 0
+            TRADE_OPEN = false
+        end
+    end
+end)
+
 local function mainLoop()
     while true do
         checkMainStickerCount()
@@ -145,13 +134,16 @@ local function mainLoop()
 
             local anchor = getTradeAnchor()
             if anchor then
+                TRADE_OPEN = true
                 while anchor.Parent do
                     local btn = getAcceptButton(anchor)
                     if btn then
                         smartClick(btn)
                     end
-                    task.wait(0.5)
+                    task.wait(0.4)
                 end
+                TRADE_OPEN = false
+                LAST_CLICK = 0
             end
         end
 
@@ -197,7 +189,7 @@ local function altLoop()
             local btn = slot.ObjImage.GuiTile.StageOverlay:FindFirstChild("AddButton", true)
             if btn then
                 smartClick(btn)
-                task.wait(0.3)
+                task.wait(0.25)
             end
         end
     end
@@ -207,7 +199,7 @@ local function altLoop()
         if btn then
             smartClick(btn)
         end
-        task.wait(0.5)
+        task.wait(0.4)
     end
 
     pcall(function()
