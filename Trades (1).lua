@@ -1,7 +1,11 @@
 repeat task.wait() until game:IsLoaded()
-print("v6")
+print("v7")
+
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
+local UIS = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+local VIM = game:GetService("VirtualInputManager")
 
 local LP = Players.LocalPlayer
 local Config = getgenv().Config or {}
@@ -15,10 +19,8 @@ local TRADE_TIMEOUT = 30
 local LAST_CLICK = 0
 local TRADE_OPEN = false
 local WROTE_MAIN_FILE = false
+local ALT_ACCEPTED = false
 
--------------------------------------------------
--- UTILS
--------------------------------------------------
 local function waitForPath(root, path, timeout)
     local cur = root
     local t0 = tick()
@@ -39,7 +41,6 @@ local function fireConnections(signal)
         return getconnections(signal)
     end)
     if not ok or not conns then return false end
-
     for _, c in ipairs(conns) do
         if typeof(c.Function) == "function" then
             pcall(c.Function)
@@ -48,10 +49,6 @@ local function fireConnections(signal)
     end
     return false
 end
-
-local UIS = game:GetService("UserInputService")
-local GuiService = game:GetService("GuiService")
-local VIM = game:GetService("VirtualInputManager")
 
 local function clickEnter(obj)
     GuiService.SelectedObject = obj
@@ -70,7 +67,8 @@ end
 
 local function safeClick(btn)
     if not btn or not btn:IsDescendantOf(game) then return false end
-
+    if tick() - LAST_CLICK < CLICK_DELAY then return false end
+    LAST_CLICK = tick()
     pcall(function()
         for _,v in ipairs(getconnections(btn.Activated)) do
             v:Fire()
@@ -79,14 +77,10 @@ local function safeClick(btn)
             v:Fire()
         end
     end)
-
     task.wait(0.05)
-
     pcall(function() clickEnter(btn) end)
     task.wait(0.05)
-
     pcall(function() clickMouse(btn) end)
-
     return true
 end
 
@@ -98,9 +92,6 @@ local function shouldAccept(btn)
     return false
 end
 
--------------------------------------------------
--- MULTI MAIN SUPPORT
--------------------------------------------------
 local function normalize(str)
     return tostring(str):lower():gsub("%s+", "")
 end
@@ -122,11 +113,9 @@ end
 
 local function isMainPlayer(p)
     if not p then return false end
-
     local uid = normalize(p.UserId)
     local name = normalize(p.Name)
     local dname = normalize(p.DisplayName)
-
     for _, main in ipairs(MAIN_LIST) do
         if uid == main or name == main or dname == main then
             return true
@@ -147,9 +136,6 @@ local function findMain()
     end
 end
 
--------------------------------------------------
--- STICKER MAP
--------------------------------------------------
 local NameToImage = {}
 
 local function scan(t)
@@ -173,18 +159,13 @@ for _, name in ipairs(Config["Sticker Trade"] or {}) do
     end
 end
 
--------------------------------------------------
--- STICKER BOOK COUNT (MAIN)
--------------------------------------------------
 local function getStickerSlotCount()
     local ok, cache = pcall(function()
         return require(RS.ClientStatCache):Get()
     end)
     if not ok or not cache then return 0 end
-
     local book = cache.Stickers and cache.Stickers.Book
     if type(book) ~= "table" then return 0 end
-
     local maxIndex = 0
     for k in pairs(book) do
         local num = tonumber(k)
@@ -192,14 +173,12 @@ local function getStickerSlotCount()
             maxIndex = num
         end
     end
-
     return maxIndex
 end
 
 local function checkMainStickerCount()
     if CHANGE_MAIN_AT <= 0 then return end
     if WROTE_MAIN_FILE then return end
-
     local total = getStickerSlotCount()
     if total >= CHANGE_MAIN_AT then
         WROTE_MAIN_FILE = true
@@ -209,9 +188,6 @@ local function checkMainStickerCount()
     end
 end
 
--------------------------------------------------
--- GUI
--------------------------------------------------
 local function tradeLayer()
     return LP.PlayerGui:FindFirstChild("ScreenGui")
         and LP.PlayerGui.ScreenGui:FindFirstChild("TradeLayer")
@@ -230,26 +206,20 @@ local function acceptButton(anchor)
     if ok then return btn end
 end
 
--------------------------------------------------
--- FAILSAFE RESET
--------------------------------------------------
 task.spawn(function()
     while true do
         task.wait(5)
         if TRADE_OPEN and not tradeAnchor() then
             LAST_CLICK = 0
             TRADE_OPEN = false
+            ALT_ACCEPTED = false
         end
     end
 end)
 
--------------------------------------------------
--- MAIN LOOP
--------------------------------------------------
 local function mainLoop()
     while true do
         checkMainStickerCount()
-
         local layer = tradeLayer()
         if layer then
             local incoming = layer:FindFirstChild("IncomingTradeRequestFrame", true)
@@ -259,36 +229,28 @@ local function mainLoop()
                     safeClick(btn)
                 end
             end
-
             local anchor = tradeAnchor()
             if anchor then
                 TRADE_OPEN = true
                 local start = tick()
-
                 while anchor.Parent do
                     local btn = acceptButton(anchor)
                     if btn and shouldAccept(btn) then
                         safeClick(btn)
                     end
-
                     if tick() - start > TRADE_TIMEOUT then
                         break
                     end
                     task.wait(0.25)
                 end
-
                 TRADE_OPEN = false
                 LAST_CLICK = 0
             end
         end
-
         task.wait(0.25)
     end
 end
 
--------------------------------------------------
--- ALT LOOP
--------------------------------------------------
 local function altLoop()
     local main
     repeat
@@ -320,6 +282,8 @@ local function altLoop()
 
     if not grid then return end
 
+    local addedAny = false
+
     for _, slot in ipairs(grid:GetChildren()) do
         local ok, img = pcall(function()
             return slot.ObjImage.GuiTile.StageGrow.StagePop.StageFlip.ObjCard.ObjContent.ObjImage
@@ -330,6 +294,7 @@ local function altLoop()
                 local btn = slot.ObjImage.GuiTile.StageOverlay:FindFirstChild("AddButton", true)
                 if btn then
                     safeClick(btn)
+                    addedAny = true
                     task.wait(0.4)
                 end
             end
@@ -339,10 +304,10 @@ local function altLoop()
     local start = tick()
     while anchor.Parent do
         local btn = acceptButton(anchor)
-        if btn and shouldAccept(btn) then
+        if btn and shouldAccept(btn) and addedAny and not ALT_ACCEPTED then
             safeClick(btn)
+            ALT_ACCEPTED = true
         end
-
         if tick() - start > TRADE_TIMEOUT then
             break
         end
@@ -354,9 +319,6 @@ local function altLoop()
     end)
 end
 
--------------------------------------------------
--- START
--------------------------------------------------
 task.spawn(function()
     if isMain() then
         mainLoop()
