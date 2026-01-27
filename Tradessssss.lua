@@ -84,12 +84,17 @@ end
 
 local MAIN_LIST = {}
 
+local function pushMain(v)
+    if not v then return end
+    MAIN_LIST[#MAIN_LIST + 1] = normalize(v)
+end
+
 if type(Config["Main Account"]) == "table" then
     for _, v in ipairs(Config["Main Account"]) do
-        table.insert(MAIN_LIST, normalize(v))
+        pushMain(v)
     end
-elseif Config["Main Account"] then
-    table.insert(MAIN_LIST, normalize(Config["Main Account"]))
+else
+    pushMain(Config["Main Account"])
 end
 
 local function isMainPlayer(p)
