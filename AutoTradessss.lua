@@ -1,5 +1,5 @@
 repeat task.wait() until game:IsLoaded()
-print("v5")
+print("v6")
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 
@@ -51,23 +51,65 @@ end
 
 local UIS = game:GetService("UserInputService")
 
+local VIM = game:GetService("VirtualInputManager")
+local VirtualUser = game:GetService("VirtualUser")
+
+local function fireGC(sig)
+    if not sig then return false end
+    local ok = false
+
+    local conns = getconnections(sig)
+    if not conns or #conns == 0 then return false end
+
+    for _,v in ipairs(conns) do
+        if v.Function then
+            pcall(function()
+                v.Function()
+                ok = true
+            end)
+        end
+    end
+
+    return ok
+end
+
+local function vuClick(gui)
+    if not gui or not gui:IsA("GuiObject") then return false end
+    if not gui.Visible then return false end
+
+    local pos = gui.AbsolutePosition + (gui.AbsoluteSize / 2)
+    VirtualUser:Button1Down(pos, workspace.CurrentCamera.CFrame)
+    task.wait(0.03)
+    VirtualUser:Button1Up(pos, workspace.CurrentCamera.CFrame)
+    return true
+end
+
+local function viClick(gui)
+    if not gui or not gui:IsA("GuiObject") then return false end
+    if not gui.Visible then return false end
+
+    local pos = gui.AbsolutePosition + (gui.AbsoluteSize / 2)
+    VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
+    task.wait(0.03)
+    VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
+    return true
+end
+
+-- safeClick(button)
 local function safeClick(btn)
-    if not btn or not btn.Visible then return false end
-    if tick() - LAST_CLICK < CLICK_DELAY then return false end
-    LAST_CLICK = tick()
+    if not btn then return false end
 
     pcall(function()
         btn.Active = true
+        btn.AutoButtonColor = true
     end)
 
-    if btn:IsA("GuiButton") then
-        if UIS.TouchEnabled then
-            fireConnections(btn.Activated)
-        else
-            fireConnections(btn.MouseButton1Click)
-        end
-        return true
-    end
+    if fireGC(btn.MouseButton1Click) then return true end
+    if fireGC(btn.Activated) then return true end
+
+    if vuClick(btn) then return true end
+    if viClick(btn) then return true end
+
     return false
 end
 
