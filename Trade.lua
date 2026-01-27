@@ -1,10 +1,11 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/junggamyeon/Chatgpt-source/refs/heads/main/check.lua"))()
-print("v1")
+print("v2")
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local VIM = game:GetService("VirtualInputManager")
+local GuiService = game:GetService("GuiService")
 
 local LP = Players.LocalPlayer
 local Config = getgenv().Config or {}
@@ -16,22 +17,48 @@ local LAST_CLICK = 0
 local WROTE_MAIN_FILE = false
 local TRADE_OPEN = false
 
+local function fireButton(btn)
+    if not btn then return false end
+    if not btn.Visible then return false end
+    if not btn.Active then return false end
+
+    local fired = false
+
+    pcall(function()
+        for _, sig in ipairs({btn.Activated, btn.MouseButton1Click}) do
+            for _, conn in ipairs(getconnections(sig)) do
+                if typeof(conn.Function) == "function" then
+                    conn.Function()
+                    fired = true
+                end
+            end
+        end
+    end)
+
+    return fired
+end
+
 local function smartClick(btn)
     if not btn then return false end
     if not btn.Visible then return false end
     if not btn.Active then return false end
-    if tick() - LAST_CLICK < 0.3 then return false end
+    if tick() - LAST_CLICK < 0.25 then return false end
 
     LAST_CLICK = tick()
 
-    local absPos = btn.AbsolutePosition
-    local absSize = btn.AbsoluteSize
+    if fireButton(btn) then
+        return true
+    end
 
-    local x = absPos.X + absSize.X / 2
-    local y = absPos.Y + absSize.Y / 2
+    local inset = GuiService:GetGuiInset()
+    local pos = btn.AbsolutePosition
+    local size = btn.AbsoluteSize
+
+    local x = pos.X + size.X / 2 + inset.X
+    local y = pos.Y + size.Y / 2 + inset.Y
 
     VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
-    task.wait(0.05)
+    task.wait(0.03)
     VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
 
     return true
@@ -173,24 +200,23 @@ local function altLoop()
     local anchor = getTradeAnchor()
     if not anchor then return end
 
-    local grid = anchor
-        :WaitForChild("TradeInventory")
+    local grid
+    repeat
+        grid = anchor:FindFirstChild("TradeInventory", true)
+        task.wait(0.2)
+    until grid
+
+    grid = grid
         :WaitForChild("InventoryFrame")
         :WaitForChild("ScrollingFrame")
         :WaitForChild("GuiGrid")
         :WaitForChild("GridSlotStage")
 
     for _, slot in ipairs(grid:GetChildren()) do
-        local ok, img = pcall(function()
-            return slot.ObjImage.GuiTile.StageGrow.StagePop.StageFlip.ObjCard.ObjContent.ObjImage
-        end)
-
-        if ok and img and img:IsA("ImageLabel") then
-            local btn = slot.ObjImage.GuiTile.StageOverlay:FindFirstChild("AddButton", true)
-            if btn then
-                smartClick(btn)
-                task.wait(0.25)
-            end
+        local btn = slot:FindFirstChild("AddButton", true)
+        if btn and btn.Visible then
+            smartClick(btn)
+            task.wait(0.25)
         end
     end
 
