@@ -107,22 +107,37 @@ end
 -------------------------------------------------
 -- MAIN DETECT
 -------------------------------------------------
-local function isMain()
-    return tostring(LP.UserId) == MAIN_ID
-        or LP.Name == MAIN_ID
-        or LP.DisplayName == MAIN_ID
+local function normalize(str)
+    return tostring(str):lower():gsub("%s+", "")
+end
+
+local MAIN_NORM = normalize(MAIN_ID)
+
+local function isMainPlayer(p)
+    if not p then return false end
+
+    local uid = normalize(p.UserId)
+    local name = normalize(p.Name)
+    local dname = normalize(p.DisplayName)
+
+    return uid == MAIN_NORM
+        or name == MAIN_NORM
+        or dname == MAIN_NORM
 end
 
 local function findMain()
     for _, p in ipairs(Players:GetPlayers()) do
-        if tostring(p.UserId) == MAIN_ID
-            or p.Name == MAIN_ID
-            or p.DisplayName == MAIN_ID then
-            dprint("Found MAIN:", p.Name, p.UserId)
+        dprint("Checking:", p.Name, p.UserId, p.DisplayName)
+        if isMainPlayer(p) then
+            dprint("FOUND MAIN:", p.Name, p.UserId, p.DisplayName)
             return p
         end
     end
-    dprint("Main not found yet")
+    dprint("Main not found in player list")
+end
+
+local function isMain()
+    return isMainPlayer(LP)
 end
 
 -------------------------------------------------
