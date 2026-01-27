@@ -111,7 +111,15 @@ local function normalize(str)
     return tostring(str):lower():gsub("%s+", "")
 end
 
-local MAIN_NORM = normalize(MAIN_ID)
+local MAIN_LIST = {}
+
+if type(Config["Main Account"]) == "table" then
+    for _, v in ipairs(Config["Main Account"]) do
+        table.insert(MAIN_LIST, normalize(v))
+    end
+elseif Config["Main Account"] then
+    table.insert(MAIN_LIST, normalize(Config["Main Account"]))
+end
 
 local function isMainPlayer(p)
     if not p then return false end
@@ -120,24 +128,25 @@ local function isMainPlayer(p)
     local name = normalize(p.Name)
     local dname = normalize(p.DisplayName)
 
-    return uid == MAIN_NORM
-        or name == MAIN_NORM
-        or dname == MAIN_NORM
-end
-
-local function findMain()
-    for _, p in ipairs(Players:GetPlayers()) do
-        dprint("Checking:", p.Name, p.UserId, p.DisplayName)
-        if isMainPlayer(p) then
-            dprint("FOUND MAIN:", p.Name, p.UserId, p.DisplayName)
-            return p
+    for _, main in ipairs(MAIN_LIST) do
+        if uid == main or name == main or dname == main then
+            return true
         end
     end
-    dprint("Main not found in player list")
+
+    return false
 end
 
 local function isMain()
     return isMainPlayer(LP)
+end
+
+local function findMain()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if isMainPlayer(p) then
+            return p
+        end
+    end
 end
 
 -------------------------------------------------
