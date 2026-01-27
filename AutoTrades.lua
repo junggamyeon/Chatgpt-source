@@ -1,5 +1,5 @@
 repeat task.wait() until game:IsLoaded()
-print("v4")
+print("v5")
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 
@@ -49,23 +49,25 @@ local function fireConnections(signal)
     return false
 end
 
-local function safeClick(btn)
-    if not btn then return false end
-    if not btn.Visible then return false end
-    if tick() - LAST_CLICK < CLICK_DELAY then return false end
+local UIS = game:GetService("UserInputService")
 
+local function safeClick(btn)
+    if not btn or not btn.Visible then return false end
+    if tick() - LAST_CLICK < CLICK_DELAY then return false end
     LAST_CLICK = tick()
 
     pcall(function()
         btn.Active = true
-        btn.AutoButtonColor = true
     end)
 
     if btn:IsA("GuiButton") then
-        fireConnections(btn.MouseButton1Click)
+        if UIS.TouchEnabled then
+            fireConnections(btn.Activated)
+        else
+            fireConnections(btn.MouseButton1Click)
+        end
         return true
     end
-
     return false
 end
 
