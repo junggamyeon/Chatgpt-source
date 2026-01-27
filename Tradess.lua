@@ -1,5 +1,5 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/junggamyeon/Chatgpt-source/refs/heads/main/check.lua"))()
-print("v2")
+print("v3")
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -17,13 +17,35 @@ local LAST_CLICK = 0
 local WROTE_MAIN_FILE = false
 local TRADE_OPEN = false
 
+local StickerTypes = require(RS.Stickers.StickerTypes)
+
+local NameToImage = {}
+local function scan(tbl)
+    for k, v in pairs(tbl) do
+        if type(v) == "table" then
+            if v.Image and type(k) == "string" then
+                NameToImage[k] = tostring(v.Image)
+            end
+            scan(v)
+        end
+    end
+end
+scan(StickerTypes)
+
+local TargetImages = {}
+for _, name in ipairs(Config["Sticker Trade"] or {}) do
+    local img = NameToImage[name]
+    if img then
+        TargetImages[img] = true
+    end
+end
+
 local function fireButton(btn)
     if not btn then return false end
     if not btn.Visible then return false end
     if not btn.Active then return false end
 
     local fired = false
-
     pcall(function()
         for _, sig in ipairs({btn.Activated, btn.MouseButton1Click}) do
             for _, conn in ipairs(getconnections(sig)) do
@@ -34,7 +56,6 @@ local function fireButton(btn)
             end
         end
     end)
-
     return fired
 end
 
@@ -213,10 +234,27 @@ local function altLoop()
         :WaitForChild("GridSlotStage")
 
     for _, slot in ipairs(grid:GetChildren()) do
-        local btn = slot:FindFirstChild("AddButton", true)
-        if btn and btn.Visible then
-            smartClick(btn)
-            task.wait(0.25)
+        local ok, img = pcall(function()
+            return slot
+                .ObjImage
+                .GuiTile
+                .StageGrow
+                .StagePop
+                .StageFlip
+                .ObjCard
+                .ObjContent
+                .ObjImage
+        end)
+
+        if ok and img and img:IsA("ImageLabel") then
+            local guiImg = tostring(img.Image)
+            if TargetImages[guiImg] then
+                local btn = slot:FindFirstChild("AddButton", true)
+                if btn and btn.Visible then
+                    smartClick(btn)
+                    task.wait(0.25)
+                end
+            end
         end
     end
 
