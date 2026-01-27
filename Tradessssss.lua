@@ -2,13 +2,11 @@ repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
-local GuiService = game:GetService("GuiService")
 
 local LP = Players.LocalPlayer
 local Config = getgenv().Config or {}
-local MAIN_ID = tostring(Config["Main Account"] or "")
-local CHANGE_MAIN_AT = tonumber(Config["Change Acc Main When Has Sticker"] or 0)
 
+local CHANGE_MAIN_AT = tonumber(Config["Change Acc Main When Has Sticker"] or 0)
 local StickerTypes = require(RS.Stickers.StickerTypes)
 
 local CLICK_DELAY = 0.75
@@ -17,13 +15,6 @@ local TRADE_TIMEOUT = 30
 local LAST_CLICK = 0
 local TRADE_OPEN = false
 local WROTE_MAIN_FILE = false
-
-local DEBUG = true
-local function dprint(...)
-    if DEBUG then
-        print("[ALT-DEBUG]", ...)
-    end
-end
 
 -------------------------------------------------
 -- UTILS
@@ -34,14 +25,12 @@ local function waitForPath(root, path, timeout)
     for _, name in ipairs(path) do
         while cur and not cur:FindFirstChild(name) do
             if timeout and tick() - t0 > timeout then
-                dprint("waitForPath TIMEOUT at", name)
                 return nil
             end
             task.wait(0.1)
         end
         cur = cur:FindFirstChild(name)
     end
-    dprint("waitForPath OK:", cur:GetFullName())
     return cur
 end
 
@@ -49,40 +38,23 @@ local function fireConnections(signal)
     local ok, conns = pcall(function()
         return getconnections(signal)
     end)
-    if not ok or not conns then
-        dprint("getconnections FAILED")
-        return false
-    end
+    if not ok or not conns then return false end
+
     for _, c in ipairs(conns) do
         if typeof(c.Function) == "function" then
-            dprint("Firing connection")
             pcall(c.Function)
             return true
         end
     end
-    dprint("No valid connections")
     return false
 end
 
 local function safeClick(btn)
-    if not btn then
-        dprint("safeClick: btn nil")
-        return false
-    end
-    if not btn.Visible then
-        dprint("safeClick: btn not visible", btn:GetFullName())
-        return false
-    end
-    if not btn.Active then
-        dprint("safeClick: btn not active", btn:GetFullName())
-        return false
-    end
-    if tick() - LAST_CLICK < CLICK_DELAY then
-        return false
-    end
+    if not btn then return false end
+    if not btn.Visible or not btn.Active then return false end
+    if tick() - LAST_CLICK < CLICK_DELAY then return false end
 
     LAST_CLICK = tick()
-    dprint("Clicking:", btn:GetFullName())
 
     if btn:IsA("GuiButton") then
         if fireConnections(btn.Activated) then return true end
@@ -98,14 +70,13 @@ end
 local function shouldAccept(btn)
     local label = btn:FindFirstChild("TextLabel", true)
     if label and label.Text then
-        dprint("Accept label text:", label.Text)
         return label.Text:lower() == "accept"
     end
     return false
 end
 
 -------------------------------------------------
--- MAIN DETECT
+-- MULTI MAIN SUPPORT
 -------------------------------------------------
 local function normalize(str)
     return tostring(str):lower():gsub("%s+", "")
@@ -133,7 +104,6 @@ local function isMainPlayer(p)
             return true
         end
     end
-
     return false
 end
 
@@ -172,29 +142,20 @@ for _, name in ipairs(Config["Sticker Trade"] or {}) do
     local img = NameToImage[name]
     if img then
         TargetImages[img] = true
-        dprint("Target sticker:", name, "=>", img)
-    else
-        dprint("Sticker NOT FOUND in map:", name)
     end
 end
 
 -------------------------------------------------
--- BOOK COUNT
+-- STICKER BOOK COUNT (MAIN)
 -------------------------------------------------
 local function getStickerSlotCount()
     local ok, cache = pcall(function()
         return require(RS.ClientStatCache):Get()
     end)
-    if not ok or not cache then
-        dprint("ClientStatCache FAILED")
-        return 0
-    end
+    if not ok or not cache then return 0 end
 
     local book = cache.Stickers and cache.Stickers.Book
-    if type(book) ~= "table" then
-        dprint("Sticker book missing")
-        return 0
-    end
+    if type(book) ~= "table" then return 0 end
 
     local maxIndex = 0
     for k in pairs(book) do
@@ -204,64 +165,95 @@ local function getStickerSlotCount()
         end
     end
 
-    dprint("Sticker slots:", maxIndex)
     return maxIndex
+end
+
+local function checkMainStickerCount()
+    if CHANGE_MAIN_AT <= 0 then return end
+    if WROTE_MAIN_FILE then return end
+
+    local total = getStickerSlotCount()
+    if total >= CHANGE_MAIN_AT then
+        WROTE_MAIN_FILE = true
+        pcall(function()
+            writefile(LP.Name .. ".txt", "Completed-MainAutoTrade")
+        end)
+    end
 end
 
 -------------------------------------------------
 -- GUI
 -------------------------------------------------
 local function tradeLayer()
-    local gui = LP.PlayerGui:FindFirstChild("ScreenGui")
-    if not gui then
-        dprint("ScreenGui not found")
-        return
-    end
-    local layer = gui:FindFirstChild("TradeLayer")
-    if not layer then
-        dprint("TradeLayer not found")
-    end
-    return layer
+    return LP.PlayerGui:FindFirstChild("ScreenGui")
+        and LP.PlayerGui.ScreenGui:FindFirstChild("TradeLayer")
 end
 
 local function tradeAnchor()
     local layer = tradeLayer()
     if not layer then return end
-    local anchor = layer:FindFirstChild("TradeAnchorFrame", true)
-    if anchor then
-        dprint("TradeAnchor found")
-    end
-    return anchor
+    return layer:FindFirstChild("TradeAnchorFrame", true)
 end
 
 local function acceptButton(anchor)
     local ok, btn = pcall(function()
         return anchor.TradeFrame.ButtonAccept.ButtonTop
     end)
-    if ok and btn then
-        return btn
-    end
-    dprint("Accept button not found")
+    if ok then return btn end
 end
+
+-------------------------------------------------
+-- FAILSAFE RESET
+-------------------------------------------------
+task.spawn(function()
+    while true do
+        task.wait(5)
+        if TRADE_OPEN and not tradeAnchor() then
+            LAST_CLICK = 0
+            TRADE_OPEN = false
+        end
+    end
+end)
 
 -------------------------------------------------
 -- MAIN LOOP
 -------------------------------------------------
 local function mainLoop()
     while true do
+        checkMainStickerCount()
+
         local layer = tradeLayer()
         if layer then
             local incoming = layer:FindFirstChild("IncomingTradeRequestFrame", true)
             if incoming then
-                dprint("Incoming trade detected")
                 local btn = incoming:FindFirstChild("ButtonAccept", true)
                 if btn then
                     safeClick(btn)
-                else
-                    dprint("Incoming Accept button missing")
                 end
             end
+
+            local anchor = tradeAnchor()
+            if anchor then
+                TRADE_OPEN = true
+                local start = tick()
+
+                while anchor.Parent do
+                    local btn = acceptButton(anchor)
+                    if btn and shouldAccept(btn) then
+                        safeClick(btn)
+                    end
+
+                    if tick() - start > TRADE_TIMEOUT then
+                        break
+                    end
+                    task.wait(0.25)
+                end
+
+                TRADE_OPEN = false
+                LAST_CLICK = 0
+            end
         end
+
         task.wait(0.25)
     end
 end
@@ -270,8 +262,6 @@ end
 -- ALT LOOP
 -------------------------------------------------
 local function altLoop()
-    dprint("ALT LOOP START")
-
     local main
     repeat
         main = findMain()
@@ -279,11 +269,9 @@ local function altLoop()
     until main
 
     local lastSend = 0
-
     repeat
         if tick() - lastSend >= 2 then
             lastSend = tick()
-            dprint("Sending trade request to", main.UserId)
             pcall(function()
                 RS.Events.TradePlayerRequestStart:FireServer(main.UserId)
             end)
@@ -292,10 +280,7 @@ local function altLoop()
     until tradeAnchor()
 
     local anchor = tradeAnchor()
-    if not anchor then
-        dprint("Anchor still nil, abort")
-        return
-    end
+    if not anchor then return end
 
     local grid = waitForPath(anchor, {
         "TradeInventory",
@@ -305,12 +290,7 @@ local function altLoop()
         "GridSlotStage"
     }, 10)
 
-    if not grid then
-        dprint("Grid NOT FOUND")
-        return
-    end
-
-    dprint("Scanning slots:", #grid:GetChildren())
+    if not grid then return end
 
     for _, slot in ipairs(grid:GetChildren()) do
         local ok, img = pcall(function()
@@ -318,32 +298,24 @@ local function altLoop()
         end)
 
         if ok and img and img:IsA("ImageLabel") then
-            local imageId = tostring(img.Image)
-            dprint("Slot image:", imageId)
-
-            if TargetImages[imageId] then
-                dprint("MATCH -> adding sticker")
+            if TargetImages[tostring(img.Image)] then
                 local btn = slot.ObjImage.GuiTile.StageOverlay:FindFirstChild("AddButton", true)
                 if btn then
                     safeClick(btn)
                     task.wait(0.4)
-                else
-                    dprint("AddButton missing in slot")
                 end
             end
-        else
-            dprint("Slot image not readable")
         end
     end
 
     local start = tick()
     while anchor.Parent do
         local btn = acceptButton(anchor)
-        if btn then
+        if btn and shouldAccept(btn) then
             safeClick(btn)
         end
+
         if tick() - start > TRADE_TIMEOUT then
-            dprint("Trade timeout")
             break
         end
         task.wait(0.25)
@@ -352,8 +324,6 @@ local function altLoop()
     pcall(function()
         writefile(LP.Name .. ".txt", "Completed-TradeStarSign")
     end)
-
-    dprint("ALT LOOP END")
 end
 
 -------------------------------------------------
