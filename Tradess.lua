@@ -18,6 +18,9 @@ local LAST_CLICK = 0
 local TRADE_OPEN = false
 local WROTE_MAIN_FILE = false
 
+-------------------------------------------------
+-- UTILS
+-------------------------------------------------
 local function waitForPath(root, path, timeout)
     local cur = root
     local t0 = tick()
@@ -73,6 +76,9 @@ local function shouldAccept(btn)
     return false
 end
 
+-------------------------------------------------
+-- MAIN DETECT
+-------------------------------------------------
 local function isMain()
     if tostring(LP.UserId) == MAIN_ID then return true end
     if LP.Name == MAIN_ID then return true end
@@ -88,6 +94,9 @@ local function findMain()
     end
 end
 
+-------------------------------------------------
+-- STICKER MAP
+-------------------------------------------------
 local NameToImage = {}
 
 local function scan(t)
@@ -111,6 +120,9 @@ for _, name in ipairs(Config["Sticker Trade"] or {}) do
     end
 end
 
+-------------------------------------------------
+-- BOOK COUNT (MAIN FEATURE)
+-------------------------------------------------
 local function getStickerSlotCount()
     local ok, cache = pcall(function()
         return require(RS.ClientStatCache):Get()
@@ -144,6 +156,9 @@ local function checkMainStickerCount()
     end
 end
 
+-------------------------------------------------
+-- GUI
+-------------------------------------------------
 local function tradeLayer()
     return LP.PlayerGui:FindFirstChild("ScreenGui")
         and LP.PlayerGui.ScreenGui:FindFirstChild("TradeLayer")
@@ -162,6 +177,9 @@ local function acceptButton(anchor)
     if ok then return btn end
 end
 
+-------------------------------------------------
+-- FAILSAFE RESET
+-------------------------------------------------
 task.spawn(function()
     while true do
         task.wait(5)
@@ -172,6 +190,9 @@ task.spawn(function()
     end
 end)
 
+-------------------------------------------------
+-- MAIN LOOP
+-------------------------------------------------
 local function mainLoop()
     while true do
         checkMainStickerCount()
@@ -213,6 +234,9 @@ local function mainLoop()
     end
 end
 
+-------------------------------------------------
+-- ALT LOOP
+-------------------------------------------------
 local function altLoop()
     local main
     repeat
@@ -279,6 +303,9 @@ local function altLoop()
     end)
 end
 
+-------------------------------------------------
+-- START
+-------------------------------------------------
 task.spawn(function()
     if isMain() then
         mainLoop()
