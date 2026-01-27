@@ -1,5 +1,5 @@
 repeat task.wait() until game:IsLoaded()
-
+print("v3")
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 
@@ -51,10 +51,15 @@ end
 
 local function safeClick(btn)
     if not btn then return false end
-    if not btn.Visible or not btn.Active then return false end
+    if not btn.Visible then return false end
     if tick() - LAST_CLICK < CLICK_DELAY then return false end
 
     LAST_CLICK = tick()
+
+    pcall(function()
+        btn.Active = true
+        btn.AutoButtonColor = true
+    end)
 
     if btn:IsA("GuiButton") then
         if fireConnections(btn.Activated) then return true end
