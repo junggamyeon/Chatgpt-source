@@ -1,20 +1,3 @@
---Decompiled with the Synapse X Decompiler.
-
-if L_35 and getgenv().Loaded then
-    if L_508(7715) ~= 37 then
-        while true do
-        end;
-    end;
-    warn("script already loaded");
-    return ;
-end;
-getgenv().Loaded = true;
-repeat
-    if L_506(3972) ~= 12156 then
-        while true do
-        end;
-    end;
-    task.wait();
 until game:IsLoaded();
 adoniscries = function()
     pcall(function()
