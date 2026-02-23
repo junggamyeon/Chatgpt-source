@@ -1,47 +1,4 @@
-until game:IsLoaded();
-adoniscries = function()
-    pcall(function()
-        for L_556, L_557 in ipairs(game:GetDescendants()) do
-            if L_557.Name:lower():match("adonis") or L_557.Name == "__FUNCTION" or L_557.Name:match("ClientMover") then
-                L_557:Destroy();
-            end;
-        end;
-        return ;
-    end);
-    pcall(function()
-        for L_558, L_559 in ipairs(getnilinstances()) do
-            if L_559:IsA("RemoteEvent") or L_559:IsA("RemoteFunction") or L_559.Name:match("ClientMover") or L_559.Name == "__FUNCTION" then
-                if L_508(7972) ~= 564 then
-                    while true do
-                    end;
-                end;
-                L_559:Destroy();
-            end;
-        end;
-        return ;
-    end);
-    pcall(function()
-        if L_503 + 413 ~= 1766 then
-            while true do
-            end;
-        end;
-        local L_560 = nil;
-        L_560 = hookfunction(Instance.new("RemoteEvent").FireServer, (INTERPRETER_PROXY[1][34][5](function(L_561, ...)
-            if L_506(7511) == 27263 then
-                local L_562 = { ... };
-                if typeof(L_562[1]) == "table" and L_562[1].Mode == "Get" then
-                    return ;
-                end;
-                return L_560(L_561, ...);
-            end;
-            while true do
-            end;
-        end)));
-        return ;
-    end);
-    return true;
-end;
-adoniscries();
+
 local L_616 = function()
     local L_563 = game:GetService("TweenService");
     local L_564 = game:GetService("Lighting");
